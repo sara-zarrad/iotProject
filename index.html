@@ -433,6 +433,22 @@
       </button>
     </section>
 
+    <section class="card" aria-label="Prédictions">
+      <div class="lbl">Prédictions <span id="predAge"></span></div>
+      <div class="row" style="margin-top:12px">
+        <div>
+          <div class="lbl">Température dans <span class="pmin">--</span> min</div>
+          <div class="big" style="font-size:2.6rem;color:var(--lime)"><span id="pT">--</span><small>°C</small></div>
+          <div class="tag" id="pTt">En attente du serveur</div>
+        </div>
+        <div>
+          <div class="lbl">Humidité dans <span class="pmin">--</span> min</div>
+          <div class="big" style="font-size:2.6rem;color:var(--sky)"><span id="pH">--</span><small>%</small></div>
+          <div class="tag" id="pHt">En attente du serveur</div>
+        </div>
+      </div>
+    </section>
+
     <section class="card" aria-label="Journal des capteurs">
       <div class="lbl">Journal des capteurs</div>
       <div class="tablewrap">
@@ -526,6 +542,26 @@
         $("log").innerHTML = '<tr><td colspan="3">Historique indisponible (' + e.message + ')</td></tr>';
       }
     }
+
+
+    // Prédictions calculées par le serveur Python (/predictions)
+    const ARROW = { hausse: "↗ en hausse", baisse: "↘ en baisse", stable: "→ stable" };
+    async function loadPredictions() {
+      try {
+        const r = await fetch(DB + "/predictions.json");
+        const p = await r.json();
+        if (!p || !p.points || !p.points.length) return;
+        const last = p.points[p.points.length - 1];
+        const mins = Math.round((last.ts - p.updated) / 60000) || p.points.length;
+        document.querySelectorAll(".pmin").forEach(e => e.textContent = Math.max(mins, 1));
+        $("pT").textContent = last.temperature.toFixed(1);
+        $("pH").textContent = Math.round(last.humidity);
+        $("pTt").textContent = ARROW[p.temperature.trend] + " (" + p.temperature.per_min + " °C/min)";
+        $("pHt").textContent = ARROW[p.humidity.trend] + " (" + p.humidity.per_min + " %/min)";
+        $("predAge").textContent = "· mis à jour " + new Date(p.updated).toLocaleTimeString("fr-FR");
+      } catch (e) { }
+    }
+    loadPredictions(); setInterval(loadPredictions, 30000);
 
     ["led_1", "led_2"].forEach(k => $(k).addEventListener("click", () => toggle(k)));
     refresh(); setInterval(refresh, 2000);
